@@ -8,7 +8,7 @@
 <body style="text-align: center; background: #1a1a1a; color: white; margin: 0; touch-action: none;">
     <h3 id="titulo">Panel de Control</h3>
     <canvas id="pizarra" width="400" height="400" style="background: white; border: 2px solid #555;"></canvas>
-    <p id="debug">Esperando movimiento...</p>
+    <p id="debug">Conectando...</p>
 
     <script>
         const canvas = document.getElementById('pizarra');
@@ -17,28 +17,19 @@
         const titulo = document.getElementById('titulo');
         let drawing = false;
 
-        // Configuración Pusher
-        const pusher = new Pusher('aecba9aee30c70c726a5', { cluster: 'us2' });
-        pusher.connection.bind('connected', () => {
-            titulo.innerText = "✅ CONECTADO";
-            titulo.style.color = "#2ecc71";
+        // CONFIGURACIÓN PARA EVENTOS DIRECTOS
+        const pusher = new Pusher('aecba9aee30c70c726a5', { 
+            cluster: 'us2',
+            authEndpoint: 'https://pizarra-proxy.vercel.app/api/auth' // Este es el puente de autorización
         });
 
-        function enviar(x, y) {
-            debug.innerText = `Enviando: ${x},${y}`;
-            
-            // Usamos una URL directa que no falla
-            fetch('https://pizarra-proxy.vercel.app/api/pusher', {
-                method: 'POST',
-                mode: 'no-cors', // <--- Esto evita que el navegador se queje
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    appId: "1972808", key: "aecba9aee30c70c726a5", 
-                    secret: "7449bc982da41d37f194", cluster: "us2",
-                    channel: "pizarra-universal-pro", event: "nuevo-trazo", data: {x, y}
-                })
-            }).catch(err => debug.innerText = "Error de red");
-        }
+        // NOTA: Para enviar desde la tablet directo, el canal DEBE ser 'private-'
+        const channel = pusher.subscribe('private-pizarra-universal-pro');
+
+        pusher.connection.bind('connected', () => {
+            titulo.innerText = "✅ CONECTADO";
+            debug.innerText = "Listo para transmitir";
+        });
 
         function mover(e) {
             if (!drawing) return;
@@ -48,12 +39,11 @@
             let x = Math.round((e.touches ? e.touches[0].clientX : e.clientX) - rect.left);
             let y = Math.round((e.touches ? e.touches[0].clientY : e.clientY) - rect.top);
 
-            // Dibujo local
             ctx.fillStyle = "black";
             ctx.fillRect(x, y, 5, 5);
 
-            // Envío a la nube
-            enviar(x, y);
+            // ENVÍO DIRECTO (Sin fetch, sin bloqueos)
+            channel.trigger('client-nuevo-trazo', {x, y});
         }
 
         canvas.addEventListener('mousedown', () => drawing = true);
