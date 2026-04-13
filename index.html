@@ -23,7 +23,7 @@
             authEndpoint: 'https://pizarra-proxy.vercel.app/api/auth' // Este es el validador que creé para usted
         });
 
-        const channel = pusher.subscribe('private-pizarra-holyrics-777');
+        const channel = pusher.subscribe('pizarra-universal-pro');
 
         pusher.connection.bind('connected', () => {
             document.getElementById('status').innerText = "✅ CONECTADO Y SEGURO";
