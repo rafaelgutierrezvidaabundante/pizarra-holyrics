@@ -16,32 +16,19 @@
         const debug = document.getElementById('debug');
         let drawing = false;
 
-        // VOLVEMOS AL CANAL PÚBLICO (Sin errores de suscripción)
-        const pusher = new Pusher('aecba9aee30c70c726a5', { cluster: 'us2' });
-        
-        pusher.connection.bind('connected', () => {
-            document.getElementById('status').innerText = "✅ SISTEMA LISTO";
+        // CONFIGURACIÓN MAESTRA
+        // Usamos la app key directamente
+        const pusher = new Pusher('aecba9aee30c70c726a5', { 
+            cluster: 'us2',
+            forceTLS: true
         });
+        
+        // Canal público para evitar errores de suscripción
+        const channel = pusher.subscribe('pizarra-universal-pro');
 
-        async function enviarDato(x, y) {
-            // Este puente (Proxy) es el que tiene el permiso de hablar con Pusher
-            try {
-                await fetch('https://pizarra-proxy.vercel.app/api/pusher', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        appId: "1972808", key: "aecba9aee30c70c726a5", 
-                        secret: "7449bc982da41d37f194", cluster: "us2",
-                        channel: "pizarra-universal-pro", 
-                        event: "nuevo-trazo", 
-                        data: {x, y}
-                    })
-                });
-                debug.innerText = `Enviado: ${x}, ${y}`;
-            } catch (e) {
-                debug.innerText = "Error de envío";
-            }
-        }
+        pusher.connection.bind('connected', () => {
+            document.getElementById('status').innerText = "✅ RADIOTRANSMISOR LISTO";
+        });
 
         function mover(e) {
             if (!drawing) return;
@@ -52,7 +39,12 @@
 
             ctx.fillStyle = "black";
             ctx.fillRect(x, y, 5, 5);
-            enviarDato(x, y); // Envía el punto real
+
+            // PRUEBA DE FUEGO: Enviamos vía un formulario oculto (se salta el CORS)
+            const img = new Image();
+            img.src = `https://pizarra-proxy.vercel.app/api/pusher?x=${x}&y=${y}&channel=pizarra-universal-pro&event=nuevo-trazo`;
+            
+            debug.innerText = `Pulso enviado: ${x},${y}`;
         }
 
         canvas.addEventListener('mousedown', () => drawing = true);
