@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pizarra Universal - CONTROL TOTAL</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+</head>
+<body style="text-align: center; font-family: sans-serif; background: #1a1a1a; color: white; margin: 0;">
+    <h3>Pizarra de Control (Tablet/Web)</h3>
+    <div id="status" style="color: #2ecc71;">Conectando...</div>
+    <canvas id="pizarra" width="500" height="400" style="background: white; touch-action: none; margin-top: 10px;"></canvas>
+    <p>Dibuje despacio para transmitir</p>
+
+    <script>
+        const canvas = document.getElementById('pizarra');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+
+        // CONFIGURACIÓN DE ENVÍO DIRECTO
+        // Para que esto funcione sin servidor, usaremos un canal especial
+        const pusher = new Pusher('aecba9aee30c70c726a5', {
+            cluster: 'us2',
+            authEndpoint: 'https://pizarra-proxy.vercel.app/api/auth' // Este es el validador que creé para usted
+        });
+
+        const channel = pusher.subscribe('private-pizarra-holyrics-777');
+
+        pusher.connection.bind('connected', () => {
+            document.getElementById('status').innerText = "✅ CONECTADO Y SEGURO";
+        });
+
+        const draw = (e) => {
+            if (!drawing) return;
+            let x, y;
+            if (e.touches) {
+                const rect = canvas.getBoundingClientRect();
+                x = Math.round(e.touches[0].clientX - rect.left);
+                y = Math.round(e.touches[0].clientY - rect.top);
+            } else {
+                x = e.offsetX; y = e.offsetY;
+            }
+
+            ctx.fillStyle = "black";
+            ctx.fillRect(x, y, 4, 4);
+
+            // ENVÍO DE EVENTO DE CLIENTE (Se salta el CORS)
+            channel.trigger('client-nuevo-trazo', { x: x, y: y });
+        };
+
+        canvas.addEventListener('mousedown', () => drawing = true);
+        canvas.addEventListener('mouseup', () => drawing = false);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('touchstart', () => drawing = true);
+        canvas.addEventListener('touchend', () => drawing = false);
+        canvas.addEventListener('touchmove', draw);
+    </script>
+</body>
+</html>
