@@ -1,32 +1,27 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Pizarra Universal - CONTROL TOTAL</title>
+    <title>Pizarra Holyrics</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
 </head>
-<body style="text-align: center; font-family: sans-serif; background: #1a1a1a; color: white; margin: 0;">
-    <h3>Pizarra de Control (Tablet/Web)</h3>
-    <div id="status" style="color: #2ecc71;">Conectando...</div>
+<body style="text-align: center; background: #1a1a1a; color: white; margin: 0;">
+    <h3>Control Inalámbrico</h3>
+    <div id="status">Conectando...</div>
     <canvas id="pizarra" width="500" height="400" style="background: white; touch-action: none; margin-top: 10px;"></canvas>
-    <p>Dibuje despacio para transmitir</p>
 
     <script>
         const canvas = document.getElementById('pizarra');
         const ctx = canvas.getContext('2d');
         let drawing = false;
 
-        // CONFIGURACIÓN DE ENVÍO DIRECTO
-        // Para que esto funcione sin servidor, usaremos un canal especial
-        const pusher = new Pusher('aecba9aee30c70c726a5', {
-            cluster: 'us2',
-            authEndpoint: 'https://pizarra-proxy.vercel.app/api/auth' // Este es el validador que creé para usted
-        });
-
+        // CONFIGURACIÓN SIMPLE
+        const pusher = new Pusher('aecba9aee30c70c726a5', { cluster: 'us2' });
+        // CANAL PÚBLICO (Sin el "private-")
         const channel = pusher.subscribe('pizarra-universal-pro');
 
         pusher.connection.bind('connected', () => {
-            document.getElementById('status').innerText = "✅ CONECTADO Y SEGURO";
+            document.getElementById('status').innerText = "✅ EN LÍNEA";
         });
 
         const draw = (e) => {
@@ -43,8 +38,16 @@
             ctx.fillStyle = "black";
             ctx.fillRect(x, y, 4, 4);
 
-            // ENVÍO DE EVENTO DE CLIENTE (Se salta el CORS)
-            channel.trigger('client-nuevo-trazo', { x: x, y: y });
+            // USAMOS UN FETCH AL PROXY PARA ENVIAR (Ya que es canal público)
+            fetch('https://pizarra-proxy.vercel.app/api/pusher', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    appId: "1972808", key: "aecba9aee30c70c726a5", 
+                    secret: "7449bc982da41d37f194", cluster: "us2",
+                    channel: "pizarra-universal-pro", event: "nuevo-trazo", data: {x, y}
+                })
+            });
         };
 
         canvas.addEventListener('mousedown', () => drawing = true);
