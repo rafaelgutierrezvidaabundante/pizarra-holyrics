@@ -6,44 +6,53 @@
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
 </head>
 <body style="text-align: center; background: #1a1a1a; color: white; margin: 0; touch-action: none;">
-    <h3 id="titulo">Panel de Control</h3>
+    <h3 id="status">Conectando...</h3>
     <canvas id="pizarra" width="400" height="400" style="background: white; border: 2px solid #555;"></canvas>
-    <p id="debug">Conectando...</p>
+    <p id="debug">Inicie un trazo</p>
 
     <script>
         const canvas = document.getElementById('pizarra');
         const ctx = canvas.getContext('2d');
         const debug = document.getElementById('debug');
-        const titulo = document.getElementById('titulo');
         let drawing = false;
 
-        // CONFIGURACIÓN PARA EVENTOS DIRECTOS
-        const pusher = new Pusher('aecba9aee30c70c726a5', { 
-            cluster: 'us2',
-            authEndpoint: 'https://pizarra-proxy.vercel.app/api/auth' // Este es el puente de autorización
-        });
-
-        // NOTA: Para enviar desde la tablet directo, el canal DEBE ser 'private-'
-        const channel = pusher.subscribe('private-pizarra-universal-pro');
-
+        // VOLVEMOS AL CANAL PÚBLICO (Sin errores de suscripción)
+        const pusher = new Pusher('aecba9aee30c70c726a5', { cluster: 'us2' });
+        
         pusher.connection.bind('connected', () => {
-            titulo.innerText = "✅ CONECTADO";
-            debug.innerText = "Listo para transmitir";
+            document.getElementById('status').innerText = "✅ SISTEMA LISTO";
         });
+
+        async function enviarDato(x, y) {
+            // Este puente (Proxy) es el que tiene el permiso de hablar con Pusher
+            try {
+                await fetch('https://pizarra-proxy.vercel.app/api/pusher', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        appId: "1972808", key: "aecba9aee30c70c726a5", 
+                        secret: "7449bc982da41d37f194", cluster: "us2",
+                        channel: "pizarra-universal-pro", 
+                        event: "nuevo-trazo", 
+                        data: {x, y}
+                    })
+                });
+                debug.innerText = `Enviado: ${x}, ${y}`;
+            } catch (e) {
+                debug.innerText = "Error de envío";
+            }
+        }
 
         function mover(e) {
             if (!drawing) return;
             e.preventDefault();
-            
             let rect = canvas.getBoundingClientRect();
             let x = Math.round((e.touches ? e.touches[0].clientX : e.clientX) - rect.left);
             let y = Math.round((e.touches ? e.touches[0].clientY : e.clientY) - rect.top);
 
             ctx.fillStyle = "black";
             ctx.fillRect(x, y, 5, 5);
-
-            // ENVÍO DIRECTO (Sin fetch, sin bloqueos)
-            channel.trigger('client-nuevo-trazo', {x, y});
+            enviarDato(x, y); // Envía el punto real
         }
 
         canvas.addEventListener('mousedown', () => drawing = true);
